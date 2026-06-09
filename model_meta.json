@@ -1,0 +1,46 @@
+{
+  "model": "RandomForest",
+  "features": [
+    "yr",
+    "mnth",
+    "hr",
+    "holiday",
+    "weekday",
+    "workingday",
+    "temp",
+    "atemp",
+    "hum",
+    "windspeed",
+    "season_fall",
+    "season_spring",
+    "season_summer",
+    "season_winter",
+    "weathersit_clear",
+    "weathersit_heavy_rain",
+    "weathersit_light_rain",
+    "weathersit_mist"
+  ],
+  "metrics": {
+    "MAE": 47.58,
+    "RMSE": 72.81,
+    "MAPE": 35.68
+  },
+  "worst_hours": [
+    17,
+    18
+  ],
+  "scaler": {
+    "means": {
+      "temp": 0.4969871684216583,
+      "atemp": 0.4757751021347604,
+      "hum": 0.6272288394038782,
+      "windspeed": 0.1900976063064618
+    },
+    "stds": {
+      "temp": 0.1925561212497219,
+      "atemp": 0.17185021563535943,
+      "hum": 0.19292983406291508,
+      "windspeed": 0.1223402285727905
+    }
+  }
+}
