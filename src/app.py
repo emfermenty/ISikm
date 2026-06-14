@@ -24,9 +24,18 @@ HUM_MAX       = 100   # %
 WINDSPEED_MAX = 67    # km/h
 
 
-def predict(hr, mnth, yr_label, season, weekday_label,
+def _season_from_month(mnth):
+    if mnth in (3, 4, 5):  return "Весна"
+    if mnth in (6, 7, 8):  return "Лето"
+    if mnth in (9, 10, 11): return "Осень"
+    return "Зима"  # 12, 1, 2
+
+
+def predict(hr, mnth, yr_label, weekday_label,
             workingday, holiday, weather,
             temp_c, atemp_c, hum_pct, windspeed_kmh):
+
+    season = _season_from_month(mnth)
 
     # Перевод пользовательских значений → нормализованные [0,1]
     temp_norm      = temp_c      / TEMP_MAX
@@ -112,7 +121,6 @@ with gr.Blocks(title="Прогноз аренды велосипедов") as de
 
         with gr.Column():
             gr.Markdown("### День")
-            season       = gr.Dropdown(["Весна", "Лето", "Осень", "Зима"], value="Лето",  label="Сезон")
             weekday_label = gr.Dropdown(["Пн","Вт","Ср","Чт","Пт","Сб","Вс"], value="Пн", label="День недели")
             workingday   = gr.Checkbox(value=True,  label="Рабочий день")
             holiday      = gr.Checkbox(value=False, label="Праздник")
@@ -124,8 +132,8 @@ with gr.Blocks(title="Прогноз аренды велосипедов") as de
                 ["Ясно", "Туман", "Лёгкий дождь/снег", "Сильный дождь/снег"],
                 value="Ясно", label="Погодные условия"
             )
-            temp_c       = gr.Slider(0, 41,  value=20, step=0.5, label="Температура (°C)")
-            atemp_c      = gr.Slider(0, 50,  value=22, step=0.5, label="Ощущаемая температура (°C)")
+            temp_c       = gr.Slider(-8, 39,  value=20, step=0.5, label="Температура (°C)")
+            atemp_c      = gr.Slider(-16, 50, value=22, step=0.5, label="Ощущаемая температура (°C)")
             hum_pct      = gr.Slider(0, 100, value=60, step=1,   label="Влажность (%)")
             windspeed_kmh = gr.Slider(0, 67, value=10, step=0.5, label="Скорость ветра (км/ч)")
 
@@ -136,22 +144,10 @@ with gr.Blocks(title="Прогноз аренды велосипедов") as de
 
     btn.click(
         fn=predict,
-        inputs=[hr, mnth, yr_label, season, weekday_label,
+        inputs=[hr, mnth, yr_label, weekday_label,
                 workingday, holiday, weather,
                 temp_c, atemp_c, hum_pct, windspeed_kmh],
         outputs=output,
-    )
-
-    gr.Examples(
-        examples=[
-            [8,  9, "2012", "Осень",  "Пн", True,  False, "Ясно",               18, 20, 55, 12],
-            [14, 7, "2012", "Лето",   "Сб", False, False, "Ясно",               28, 30, 40,  8],
-            [22, 1, "2011", "Зима",   "Вт", True,  False, "Туман",               5,  3, 80, 15],
-            [17, 5, "2012", "Весна",  "Пт", True,  False, "Лёгкий дождь/снег",  12, 13, 75, 20],
-        ],
-        inputs=[hr, mnth, yr_label, season, weekday_label,
-                workingday, holiday, weather,
-                temp_c, atemp_c, hum_pct, windspeed_kmh],
     )
 
 if __name__ == "__main__":

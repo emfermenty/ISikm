@@ -1,6 +1,14 @@
 import pandas as pd
 import numpy as np
-
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import TimeSeriesSplit
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+import matplotlib
+matplotlib.use("Agg")   # сохраняем график в файл, без GUI
+import matplotlib.pyplot as plt
+import pickle
+import json
 # ───────────────────────────────────────────
 # 1. Загрузка данных
 # ───────────────────────────────────────────
@@ -61,7 +69,6 @@ X["weathersit"] = X["weathersit"].map(weather_map)
 # One-hot encoding для season и weathersit
 X = pd.get_dummies(X, columns=["season", "weathersit"], drop_first=False)
 
-# Булевые столбцы (holiday, workingday) приводим к int для единообразия
 X["holiday"] = X["holiday"].astype(int)
 X["workingday"] = X["workingday"].astype(int)
 
@@ -70,7 +77,7 @@ X["workingday"] = X["workingday"].astype(int)
 #
 # Масштабируем только непрерывные признаки — temp, atemp, hum, windspeed.
 # hr, mnth, weekday и т.п. оставляем как есть: они уже дискретны и
-# модели на деревьях (и линейные с dummy-переменными) работают с ними нормально.
+# модели на деревьях работают с ними нормально.
 #
 # Формула: z = (x - mean) / std  — стандартизация (Z-score normalization)
 # ───────────────────────────────────────────
@@ -82,14 +89,7 @@ stds  = X[CONTINUOUS].std()
 X[CONTINUOUS] = (X[CONTINUOUS] - means) / stds
 
 # ───────────────────────────────────────────
-# 5. Разделение на train и test
-#
-# Разбиваем 80/20: 80% — обучение + валидация, 20% — итоговый тест.
-# Соотношение 80/20 — стандартный компромисс: достаточно данных
-# для обучения и при этом репрезентативная тестовая выборка.
-#
-# shuffle=False — ВАЖНО для временных рядов: тест должен содержать
-# только последние по времени наблюдения, иначе модель "видит будущее".
+# 5. Разделение на train и test 80/20
 # ───────────────────────────────────────────
 split_idx = int(len(X) * 0.8)
 
@@ -107,20 +107,12 @@ print(list(X.columns))
 # ═══════════════════════════════════════════════════════════════
 # БЛОК 2. ОБУЧЕНИЕ И ДИАГНОСТИКА
 # ═══════════════════════════════════════════════════════════════
-from sklearn.linear_model import LinearRegression
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import TimeSeriesSplit
-from sklearn.metrics import mean_absolute_error, mean_squared_error
-import matplotlib
-matplotlib.use("Agg")   # сохраняем график в файл, без GUI
-import matplotlib.pyplot as plt
 
 # ── Вспомогательные функции метрик ───────────────────────────
 def rmse(y_true, y_pred):
     return np.sqrt(mean_squared_error(y_true, y_pred))
 
 def mape(y_true, y_pred):
-    # исключаем нули, чтобы не делить на 0
     mask = np.array(y_true) > 0
     return np.mean(np.abs(
         (np.array(y_true)[mask] - np.array(y_pred)[mask]) / np.array(y_true)[mask]
@@ -130,15 +122,10 @@ def print_metrics(name, y_true, y_pred):
     print(f"  {name:<28} MAE={mean_absolute_error(y_true, y_pred):6.1f}  "
           f"RMSE={rmse(y_true, y_pred):6.1f}  MAPE={mape(y_true, y_pred):5.1f}%")
 
-# ── Модель 1: Линейная регрессия (sklearn) ────────────────────
-# Предполагает линейную связь между признаками и cnt.
-# Простая и интерпретируемая, но не улавливает нелинейные паттерны
-# (например, двойной пик спроса утром и вечером).
+# ── Модель 1
 lr = LinearRegression()
 
-# ── Модель 2: Случайный лес (сложная модель из sklearn) ───────
-# Ансамбль деревьев решений. Хорошо улавливает нелинейные связи
-# (пики утром/вечером в будни vs равномерный профиль выходных).
+# ── Модель 2
 rf = RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)
 
 # ── Кросс-валидация ───────────────────────────────────────────
@@ -217,13 +204,6 @@ print("\nГрафик сохранён: diagnostics.png")
 # ═══════════════════════════════════════════════════════════════
 # БЛОК 3. ФИНАЛЬНЫЙ ОТБОР И СОХРАНЕНИЕ
 # ═══════════════════════════════════════════════════════════════
-import pickle
-import json
-
-# ── Выбор лучшей модели ───────────────────────────────────────
-# RandomForest стабильно лучше по всем фолдам:
-#   LinearRegression  108.7 +/- 21.6  (высокая дисперсия, не улавливает пики)
-#   RandomForest       52.2 +/- 13.7  (в 2 раза точнее и стабильнее)
 best_model      = rf
 best_model_name = "RandomForest"
 
