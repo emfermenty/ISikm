@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Прогноз спроса на прокат велосипедов — Защита проекта</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:       #0f0b07;
+            --surface:  #1a1410;
+            --surface2: #221c15;
+            --border:   rgba(245,158,11,0.18);
+            --border2:  rgba(245,158,11,0.35);
+            --a1: #f59e0b;   /* amber  */
+            --a2: #f97316;   /* orange */
+            --a3: #fbbf24;   /* gold   */
+            --a4: #ef4444;   /* red    */
+            --text:     #fdf4e7;
+            --text-sec: #c4a882;
+            --text-mut: #7a6050;
+            --font-d: 'Playfair Display', serif;
+            --font-b: 'Space Grotesk', sans-serif;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { background: var(--bg); color: var(--text); font-family: var(--font-b); overflow: hidden; height: 100vh; width: 100vw; }
+
+        /* ── DECK & SLIDES ── */
+        .deck { width: 100vw; height: 100vh; position: relative; }
+        .slide {
+            position: absolute; inset: 0;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            opacity: 0; transform: translateY(18px);
+            transition: opacity .55s ease, transform .55s ease;
+            pointer-events: none; overflow: hidden;
+        }
+        .slide.active { opacity: 1; transform: translateY(0); pointer-events: all; }
+        .content { position: relative; z-index: 2; width: 100%; max-width: 1080px; padding: clamp(1.2rem,3.5vw,3.5rem); }
+
+        /* ── NAV ── */
+        .nav { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 100;
+               display: flex; align-items: center; gap: 14px;
+               background: var(--surface); border: 1px solid var(--border); border-radius: 40px; padding: 8px 20px; }
+        .nav-btn { width: 36px; height: 36px; border: 1px solid var(--border); background: transparent;
+                   color: var(--a1); border-radius: 50%; font-size: 1.1rem; cursor: pointer;
+                   display: flex; align-items: center; justify-content: center; transition: border-color .2s, background .2s; }
+        .nav-btn:hover { border-color: var(--a1); background: rgba(245,158,11,.08); }
+        .dots { display: flex; gap: 7px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--surface2); border: 1px solid var(--border); cursor: pointer; transition: background .25s, transform .25s; }
+        .dot.active { background: var(--a1); transform: scale(1.25); }
+        .ctr { font-size: 0.78rem; color: var(--text-mut); min-width: 36px; text-align: center; }
+
+        /* ── REVEAL ── */
+        .r { opacity: 0; transform: translateY(14px); }
+
+        /* ── TYPOGRAPHY ── */
+        .tag { display: inline-block; font-size: .72rem; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--a1); margin-bottom: .55rem; }
+        h1.display { font-family: var(--font-d); font-size: clamp(2.2rem,5.5vw,4rem); font-weight: 900; line-height: 1.1; }
+        h2.display { font-family: var(--font-d); font-size: clamp(1.7rem,3.5vw,2.8rem); font-weight: 700; line-height: 1.2; color: var(--text); }
+
+        /* ── CARD ── */
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1.1rem 1.3rem; }
+        .card.accent-left { border-left: 3px solid var(--a1); }
+        .card.accent-left.a2 { border-left-color: var(--a2); }
+        .card.accent-left.a3 { border-left-color: var(--a3); }
+        .card.accent-left.a4 { border-left-color: var(--a4); }
+
+        /* ── DIVIDER ── */
+        .divider { width: 100%; height: 1px; background: var(--border); margin: 1.1rem 0; }
+
+        /* ── STAT ── */
+        .stat-num { font-family: var(--font-d); font-size: 2.4rem; font-weight: 900; color: var(--a1); line-height: 1; }
+        .stat-label { font-size: .7rem; color: var(--text-mut); text-transform: uppercase; letter-spacing: .1em; margin-top: .3rem; }
+
+        /* ── BADGE ── */
+        .badge { display: inline-block; font-size: .68rem; font-weight: 600; padding: .15rem .5rem; border-radius: 3px; }
+        .badge.amber  { background: rgba(245,158,11,.12); color: var(--a1); border: 1px solid rgba(245,158,11,.25); }
+        .badge.orange { background: rgba(249,115,22,.12); color: var(--a2); border: 1px solid rgba(249,115,22,.25); }
+        .badge.red    { background: rgba(239,68,68,.12);  color: #f87171;  border: 1px solid rgba(239,68,68,.25); }
+        .badge.green  { background: rgba(34,197,94,.1);   color: #4ade80;  border: 1px solid rgba(34,197,94,.2); }
+
+        /* ── ROW ITEM ── */
+        .row-item { display: flex; align-items: center; gap: .8rem; padding: .6rem .9rem;
+                    background: var(--surface); border: 1px solid var(--border); border-radius: 5px; }
+        .row-item .icon { font-size: 1rem; flex-shrink: 0; }
+        .row-item .label { font-size: .83rem; color: var(--text); flex: 1; }
+
+        /* ── CHECK ITEM ── */
+        .check { display: flex; gap: .8rem; align-items: flex-start; padding: .65rem .9rem;
+                 background: var(--surface); border: 1px solid var(--border); border-radius: 5px; }
+        .check .tick { font-size: .85rem; flex-shrink: 0; margin-top: .05rem; }
+        .check p { font-size: .8rem; color: var(--text-sec); line-height: 1.45; }
+        .check p strong { color: var(--text); }
+
+        /* ── METRIC ROW ── */
+        .metric-row { display: flex; justify-content: space-between; align-items: center;
+                      padding: .5rem 0; border-bottom: 1px solid var(--border); }
+        .metric-row:last-child { border-bottom: none; }
+        .metric-row .mname { font-size: .8rem; color: var(--text-sec); }
+        .metric-row .mval  { font-size: .9rem; font-weight: 700; color: var(--a1); }
+
+        /* ── PIPELINE ── */
+        .pipe { display: flex; align-items: stretch; }
+        .pipe-node { background: var(--surface2); border: 1px solid var(--border2); padding: .65rem .75rem;
+                     flex: 1; text-align: center; }
+        .pipe-node:first-child { border-radius: 5px 0 0 5px; }
+        .pipe-node:last-child  { border-radius: 0 5px 5px 0; }
+        .pipe-arr { display: flex; align-items: center; color: var(--a1); font-size: 1rem; padding: 0 .15rem; opacity: .7; flex-shrink: 0; }
+        .pipe-title { font-size: .7rem; font-weight: 700; color: var(--a1); }
+        .pipe-sub   { font-size: .6rem; color: var(--text-mut); margin-top: .2rem; }
+
+        /* ── HBAR ── */
+        .hbar-track { height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; flex: 1; }
+        .hbar-fill  { height: 100%; width: 0%; transition: width .9s ease; border-radius: 3px; }
+
+        /* ── DECORATIVE BG LINES ── */
+        .bg-lines { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+        .bg-lines::before {
+            content: '';
+            position: absolute;
+            inset: -50%;
+            background-image: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 59px,
+                rgba(245,158,11,.04) 59px,
+                rgba(245,158,11,.04) 60px
+            );
+        }
+        .bg-lines::after {
+            content: '';
+            position: absolute;
+            inset: -50%;
+            background-image: repeating-linear-gradient(
+                90deg,
+                transparent,
+                transparent 79px,
+                rgba(245,158,11,.03) 79px,
+                rgba(245,158,11,.03) 80px
+            );
+        }
+
+        /* ── GLOW ACCENT (top edge) ── */
+        .slide::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 20%; right: 20%; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--a1), transparent);
+            opacity: 0; transition: opacity .6s ease; z-index: 3;
+        }
+        .slide.active::before { opacity: .6; }
+
+        @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+        @keyframes glow-pulse {
+            0%,100% { text-shadow: 0 0 25px rgba(245,158,11,.4); }
+            50%      { text-shadow: 0 0 45px rgba(245,158,11,.7), 0 0 80px rgba(249,115,22,.3); }
+        }
+        .glow { animation: glow-pulse 3s ease-in-out infinite; }
+    </style>
+</head>
+<body>
+<div class="deck">
+
+<!-- ═══════════════════════════════════════════════════════
+     СЛАЙД 1 — ТИТУЛ
+══════════════════════════════════════════════════════════ -->
+<div class="slide active" data-slide="1">
+    <div class="bg-lines"></div>
+    <div class="content" style="display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center;">
+        <!-- Левая колонка — текст -->
+        <div>
+            <div class="r" style="display:flex;align-items:center;gap:.6rem;margin-bottom:1.4rem;">
+                <div style="width:28px;height:2px;background:var(--a1);"></div>
+                <span style="font-size:.75rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--a1);">Интеллектуальные системы · Защита</span>
+            </div>
+            <h1 class="r display glow" style="margin-bottom:1.2rem;color:var(--text);">
+                Прогноз<br><span style="color:var(--a1);">почасового</span><br>спроса на<br>велопрокат
+            </h1>
+            <div class="r divider"></div>
+            <p class="r" style="font-size:.9rem;color:var(--text-sec);line-height:1.6;margin-bottom:1.5rem;">
+                Capital Bikeshare, Вашингтон 2011–2012<br>
+                Модель: <strong style="color:var(--text);">Random Forest Regressor</strong>
+            </p>
+            <div class="r" style="display:flex;gap:.6rem;flex-wrap:wrap;">
+                <span class="badge amber">Random Forest</span>
+                <span class="badge orange">scikit-learn</span>
+                <span class="badge green">Gradio</span>
+                <span class="badge amber">pytest</span>
+            </div>
+        </div>
+        <!-- Правая колонка — статистика -->
+        <div style="display:flex;flex-direction:column;gap:1rem;">
+            <div class="r card" style="text-align:center;padding:1.6rem;">
+                <div style="font-size:3.5rem;animation:float 3.5s ease-in-out infinite;">🚲</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                <div class="r card" style="text-align:center;">
+                    <div class="stat-num" data-count="17379">0</div>
+                    <div class="stat-label">Записей</div>
+                </div>
+                <div class="r card" style="text-align:center;">
+                    <div class="stat-num" style="color:var(--a2);" data-count="18">0</div>
+                    <div class="stat-label">Признаков</div>
+                </div>
+                <div class="r card" style="text-align:center;">
+                    <div class="stat-num" style="color:var(--a3);font-size:1.8rem;">47.6</div>
+                    <div class="stat-label">MAE (велосипедов)</div>
+                </div>
+                <div class="r card" style="text-align:center;">
+                    <div class="stat-num" style="color:var(--a2);font-size:1.8rem;">2.2×</div>
+                    <div class="stat-label">Лучше baseline</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     СЛАЙД 2 — АКТУАЛЬНОСТЬ
+══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="2">
+    <div class="bg-lines"></div>
+    <div class="content">
+        <div class="r tag">Актуальность и цель</div>
+        <h2 class="r display" style="margin-bottom:.3rem;">Зачем это нужно?</h2>
+        <div class="r divider"></div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-top:1.4rem;">
+            <!-- Левая: большая проблема -->
+            <div>
+                <div class="r card accent-left" style="margin-bottom:1rem;padding:1.4rem 1.5rem;">
+                    <div style="font-size:1.4rem;margin-bottom:.6rem;">🚦</div>
+                    <h3 style="font-size:1rem;font-weight:700;color:var(--a1);margin-bottom:.5rem;">Проблема</h3>
+                    <p style="font-size:.85rem;color:var(--text-sec);line-height:1.6;">
+                        В часы пик велосипедов не хватает — пользователи уходят. В остальное время парк простаивает. Операторы перераспределяют его <strong style="color:var(--text);">вручную</strong>, теряя деньги и клиентов.
+                    </p>
+                </div>
+                <div class="r card accent-left a2" style="padding:1.4rem 1.5rem;">
+                    <div style="font-size:1.4rem;margin-bottom:.6rem;">🎯</div>
+                    <h3 style="font-size:1rem;font-weight:700;color:var(--a2);margin-bottom:.5rem;">Цель проекта</h3>
+                    <p style="font-size:.85rem;color:var(--text-sec);line-height:1.6;">
+                        ML-система, которая по времени суток, погоде и типу дня мгновенно предсказывает <strong style="color:var(--text);">почасовой спрос</strong> через веб-интерфейс.
+                    </p>
+                </div>
+            </div>
+            <!-- Правая: кто и зачем -->
+            <div style="display:flex;flex-direction:column;gap:.7rem;">
+                <div class="r" style="font-size:.72rem;color:var(--text-mut);text-transform:uppercase;letter-spacing:.12em;">Кто использует</div>
+                <div class="r card accent-left a3">
+                    <div style="font-size:.75rem;font-weight:700;color:var(--a3);margin-bottom:.3rem;">👤 Целевой пользователь</div>
+                    <p style="font-size:.8rem;color:var(--text-sec);line-height:1.45;">Диспетчер велопроката, которому нужно решить — куда подвезти велосипеды <strong style="color:var(--text);">прямо сейчас</strong>.</p>
+                </div>
+                <div class="r card accent-left">
+                    <div style="font-size:.75rem;font-weight:700;color:var(--a1);margin-bottom:.3rem;">🌱 Социальная сфера</div>
+                    <p style="font-size:.8rem;color:var(--text-sec);line-height:1.45;">Городская мобильность и экология — эффективный велопрокат снижает нагрузку на транспорт и помогает строить <strong style="color:var(--text);">устойчивые города</strong>.</p>
+                </div>
+                <div class="r card accent-left a2">
+                    <div style="font-size:.75rem;font-weight:700;color:var(--a2);margin-bottom:.3rem;">📈 Масштаб задачи</div>
+                    <p style="font-size:.8rem;color:var(--text-sec);line-height:1.45;">Capital Bikeshare — один из крупнейших велопрокатов США. Ошибка в прогнозе на час пик = сотни недовольных пользователей в день.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     СЛАЙД 3 — ДАННЫЕ
+══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="3">
+    <div class="bg-lines"></div>
+    <div class="content">
+        <div class="r tag">Данные датасета</div>
+        <h2 class="r display" style="margin-bottom:.3rem;">UCI Bike Sharing Dataset</h2>
+        <div class="r divider"></div>
+
+        <!-- Три стата сверху -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.4rem;">
+            <div class="r card" style="text-align:center;padding:.9rem;">
+                <div class="stat-num" data-count="17379">0</div>
+                <div class="stat-label">Записей</div>
+            </div>
+            <div class="r card" style="text-align:center;padding:.9rem;">
+                <div class="stat-num" style="color:var(--a2);" data-count="18">0</div>
+                <div class="stat-label">Признаков (X)</div>
+            </div>
+            <div class="r card" style="text-align:center;padding:.9rem;">
+                <div class="stat-num" style="color:var(--a3);font-size:1.8rem;">2 года</div>
+                <div class="stat-label">2011 – 2012</div>
+            </div>
+            <div class="r card" style="text-align:center;padding:.9rem;">
+                <div class="stat-num" style="color:var(--a2);font-size:1.5rem;">cnt</div>
+                <div class="stat-label">Целевая переменная</div>
+            </div>
+        </div>
+
+        <!-- Признаки в виде строк -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.55rem;">
+            <div class="r row-item">
+                <span class="icon">🕐</span>
+                <span class="label"><strong>hr</strong> — час суток (0–23)</span>
+                <span class="badge red">сильнейший</span>
+            </div>
+            <div class="r row-item">
+                <span class="icon">🌡️</span>
+                <span class="label"><strong>temp / atemp</strong> — температура</span>
+                <span class="badge amber">Z-score</span>
+            </div>
+            <div class="r row-item">
+                <span class="icon">💧</span>
+                <span class="label"><strong>hum / windspeed</strong> — влажность, ветер</span>
+                <span class="badge amber">Z-score</span>
+            </div>
+            <div class="r row-item">
+                <span class="icon">🍂</span>
+                <span class="label"><strong>season</strong> — сезон года</span>
+                <span class="badge orange">one-hot ×4</span>
+            </div>
+            <div class="r row-item">
+                <span class="icon">⛅</span>
+                <span class="label"><strong>weathersit</strong> — погодные условия</span>
+                <span class="badge orange">one-hot ×4</span>
+            </div>
+            <div class="r row-item">
+                <span class="icon">📅</span>
+                <span class="label"><strong>holiday / workingday / weekday</strong></span>
+                <span class="badge green">бинарный</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     СЛАЙД 4 — МЕТОД И МОДЕЛЬ
+══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="4">
+    <div class="bg-lines"></div>
+    <div class="content">
+        <div class="r tag">Метод и модель</div>
+        <h2 class="r display" style="margin-bottom:.3rem;">Почему Random Forest?</h2>
+        <div class="r divider"></div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-top:1.2rem;">
+            <!-- Левая: сравнение моделей -->
+            <div>
+                <div class="r" style="font-size:.72rem;color:var(--text-mut);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.7rem;">Сравнение на кросс-валидации (5 фолдов)</div>
+
+                <div class="r card" style="margin-bottom:1rem;padding:1.2rem 1.4rem;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.7rem;">
+                        <span style="font-size:.85rem;font-weight:600;color:var(--text-sec);">LinearRegression</span>
+                        <span style="font-size:1rem;font-weight:700;color:#f87171;">MAE ~109</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:.8rem;">
+                        <div class="hbar-track"><div class="hbar-fill" data-width="43" style="background:#ef4444;"></div></div>
+                    </div>
+                    <p style="font-size:.72rem;color:var(--text-mut);margin-top:.5rem;">Не улавливает двойной пик 8:00 и 17:00</p>
+                </div>
+
+                <div class="r card accent-left" style="padding:1.2rem 1.4rem;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.7rem;">
+                        <span style="font-size:.85rem;font-weight:700;color:var(--text);">Random Forest</span>
+                        <span style="font-size:1rem;font-weight:700;color:var(--a1);">MAE ~52</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:.8rem;">
+                        <div class="hbar-track"><div class="hbar-fill" data-width="100" style="background:linear-gradient(90deg,var(--a1),var(--a2));"></div></div>
+                    </div>
+                    <p style="font-size:.72rem;color:var(--text-mut);margin-top:.5rem;">В 2.2× точнее — видит нелинейные паттерны</p>
+                </div>
+
+                <div class="r" style="margin-top:1rem;">
+                    <div class="metric-row">
+                        <span class="mname">n_estimators</span><span class="mval">100</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="mname">random_state</span><span class="mval">42</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="mname">n_jobs</span><span class="mval">−1 (все ядра)</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="mname">Валидация</span><span class="mval" style="color:var(--a3);">TimeSeriesSplit</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Правая: ключевые решения -->
+            <div>
+                <div class="r" style="font-size:.72rem;color:var(--text-mut);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.7rem;">Ключевые технические решения</div>
+                <div style="display:flex;flex-direction:column;gap:.6rem;">
+                    <div class="r check">
+                        <span class="tick" style="color:var(--a1);">✓</span>
+                        <p><strong>TimeSeriesSplit</strong> вместо KFold — тест всегда позже обучения, нет утечки данных из будущего</p>
+                    </div>
+                    <div class="r check">
+                        <span class="tick" style="color:var(--a1);">✓</span>
+                        <p>One-hot encoding для <strong>season</strong> и <strong>weathersit</strong> — без ложного числового порядка</p>
+                    </div>
+                    <div class="r check">
+                        <span class="tick" style="color:var(--a1);">✓</span>
+                        <p>Z-score только для непрерывных (<strong>temp, atemp, hum, windspeed</strong>) — дискретные оставлены как есть</p>
+                    </div>
+                    <div class="r check">
+                        <span class="tick" style="color:var(--a1);">✓</span>
+                        <p>Параметры скейлера сохранены в <strong>model_meta.json</strong> — app.py воспроизводит ту же трансформацию без переобучения</p>
+                    </div>
+                    <div class="r check">
+                        <span class="tick" style="color:var(--a1);">✓</span>
+                        <p>Тест — последние 20% по времени (<strong>shuffle=False</strong>) — модель не «видит будущее» при обучении</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     СЛАЙД 5 — РЕЗУЛЬТАТЫ
+══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="5">
+    <div class="bg-lines"></div>
+    <div class="content">
+        <div class="r tag">Результаты</div>
+        <h2 class="r display" style="margin-bottom:.3rem;">Ключевые метрики и выводы</h2>
+        <div class="r divider"></div>
+
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:2.5rem;margin-top:1.2rem;align-items:start;">
+            <!-- Левая: главная метрика -->
+            <div>
+                <div class="r card" style="text-align:center;padding:1.8rem 2.2rem;margin-bottom:1rem;">
+                    <div style="font-size:.7rem;color:var(--text-mut);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.4rem;">Random Forest · тест</div>
+                    <div style="font-family:var(--font-d);font-size:3.8rem;font-weight:900;color:var(--a1);line-height:1;" class="glow">47.6</div>
+                    <div style="font-size:.8rem;color:var(--text-sec);margin-top:.4rem;">велосипедов/час (MAE)</div>
+                </div>
+                <div class="r card" style="padding:1rem 1.2rem;">
+                    <div class="metric-row"><span class="mname">RMSE</span><span class="mval">72.8</span></div>
+                    <div class="metric-row"><span class="mname">MAPE</span><span class="mval">35.7%</span></div>
+                    <div class="metric-row"><span class="mname">Baseline MAE</span><span class="mval" style="color:#f87171;">~109</span></div>
+                    <div class="metric-row"><span class="mname">Сложные часы</span><span class="mval" style="color:var(--a2);">17–18</span></div>
+                </div>
+            </div>
+
+            <!-- Правая: хорошо / плохо -->
+            <div style="display:flex;flex-direction:column;gap:1rem;">
+                <div>
+                    <div class="r" style="font-size:.72rem;color:#4ade80;text-transform:uppercase;letter-spacing:.12em;margin-bottom:.6rem;">✅ Что получилось хорошо</div>
+                    <div style="display:flex;flex-direction:column;gap:.5rem;">
+                        <div class="r check" style="border-left:2px solid #4ade80;">
+                            <span class="tick" style="color:#4ade80;">→</span>
+                            <p>RF в <strong>2.2× точнее</strong> линейной регрессии на всех 5 фолдах</p>
+                        </div>
+                        <div class="r check" style="border-left:2px solid #4ade80;">
+                            <span class="tick" style="color:#4ade80;">→</span>
+                            <p>Поймал <strong>двойной пик</strong> утром и вечером в будние дни</p>
+                        </div>
+                        <div class="r check" style="border-left:2px solid #4ade80;">
+                            <span class="tick" style="color:#4ade80;">→</span>
+                            <p>TimeSeriesSplit дал <strong>честную оценку</strong> без data leakage</p>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="r" style="font-size:.72rem;color:#f87171;text-transform:uppercase;letter-spacing:.12em;margin-bottom:.6rem;">⚡ Главные трудности</div>
+                    <div style="display:flex;flex-direction:column;gap:.5rem;">
+                        <div class="r check" style="border-left:2px solid #ef4444;">
+                            <span class="tick" style="color:#f87171;">→</span>
+                            <p>Часы <strong>17–18</strong>: резкие всплески систематически занижаются</p>
+                        </div>
+                        <div class="r check" style="border-left:2px solid #ef4444;">
+                            <span class="tick" style="color:#f87171;">→</span>
+                            <p>Погода и праздники дают <strong>аномальные скачки</strong>, редкие в истории</p>
+                        </div>
+                        <div class="r check" style="border-left:2px solid #ef4444;">
+                            <span class="tick" style="color:#f87171;">→</span>
+                            <p>MAPE = 35.7%: в <strong>тихие ночные часы</strong> ошибка в % велика</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     СЛАЙД 6 — ПРОТОТИП И АРХИТЕКТУРА
+══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="6">
+    <div class="bg-lines"></div>
+    <div class="content">
+        <div class="r tag">Прототип и архитектура</div>
+        <h2 class="r display" style="margin-bottom:.3rem;">Как устроена система</h2>
+        <div class="r divider"></div>
+
+        <!-- Pipeline -->
+        <div class="r" style="margin-bottom:1.3rem;">
+            <div class="pipe">
+                <div class="pipe-node">
+                    <div style="font-size:1.2rem;">📄</div>
+                    <div class="pipe-title">hour.csv</div>
+                    <div class="pipe-sub">17 379 записей</div>
+                </div>
+                <div class="pipe-arr">→</div>
+                <div class="pipe-node">
+                    <div style="font-size:1.2rem;">⚙️</div>
+                    <div class="pipe-title">train.py</div>
+                    <div class="pipe-sub">one-hot · Z-score · RF</div>
+                </div>
+                <div class="pipe-arr">→</div>
+                <div class="pipe-node">
+                    <div style="font-size:1.2rem;">💾</div>
+                    <div class="pipe-title">model.pkl</div>
+                    <div class="pipe-sub">обученный RF</div>
+                </div>
+                <div class="pipe-arr">+</div>
+                <div class="pipe-node">
+                    <div style="font-size:1.2rem;">📋</div>
+                    <div class="pipe-title">model_meta.json</div>
+                    <div class="pipe-sub">признаки · Z-score · MAE</div>
+                </div>
+                <div class="pipe-arr">→</div>
+                <div class="pipe-node">
+                    <div style="font-size:1.2rem;">🌐</div>
+                    <div class="pipe-title">app.py</div>
+                    <div class="pipe-sub">Gradio UI</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:1.5rem;">
+            <!-- Мокап интерфейса -->
+            <div class="r">
+                <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;overflow:hidden;">
+                    <div style="background:var(--surface);border-bottom:1px solid var(--border);padding:.5rem .9rem;display:flex;align-items:center;gap:.5rem;">
+                        <span style="font-size:.75rem;color:var(--a1);font-weight:600;">🚲 Прогноз спроса на прокат велосипедов</span>
+                    </div>
+                    <div style="padding:1rem;display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">
+                        <div>
+                            <div style="font-size:.65rem;color:var(--text-mut);margin-bottom:.25rem;">Час суток</div>
+                            <div style="height:4px;background:var(--surface);border-radius:2px;overflow:hidden;margin-bottom:.3rem;"><div style="width:38%;height:100%;background:var(--a1);"></div></div>
+                            <div style="font-size:.65rem;color:var(--text-mut);margin-bottom:.25rem;">Температура (°C)</div>
+                            <div style="height:4px;background:var(--surface);border-radius:2px;overflow:hidden;margin-bottom:.3rem;"><div style="width:49%;height:100%;background:var(--a2);"></div></div>
+                            <div style="font-size:.65rem;color:var(--text-mut);margin-bottom:.25rem;">Влажность (%)</div>
+                            <div style="height:4px;background:var(--surface);border-radius:2px;overflow:hidden;"><div style="width:60%;height:100%;background:var(--a3);"></div></div>
+                        </div>
+                        <div>
+                            <div style="font-size:.65rem;color:var(--text-mut);margin-bottom:.25rem;">Сезон</div>
+                            <div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.5rem;">
+                                <span style="font-size:.62rem;padding:.1rem .4rem;border:1px solid var(--border);border-radius:3px;color:var(--text-mut);">Весна</span>
+                                <span style="font-size:.62rem;padding:.1rem .4rem;border:1px solid var(--a1);border-radius:3px;color:var(--a1);">Лето</span>
+                                <span style="font-size:.62rem;padding:.1rem .4rem;border:1px solid var(--border);border-radius:3px;color:var(--text-mut);">Осень</span>
+                            </div>
+                            <div style="font-size:.65rem;color:var(--text-mut);margin-bottom:.25rem;">Погода</div>
+                            <span style="font-size:.65rem;padding:.15rem .45rem;border:1px solid rgba(74,222,128,.3);border-radius:3px;color:#4ade80;">Ясно</span>
+                        </div>
+                    </div>
+                    <div style="background:var(--surface);border-top:1px solid var(--border);margin:.6rem;border-radius:4px;padding:.7rem;text-align:center;">
+                        <div style="font-size:.62rem;color:var(--text-mut);">Прогнозируемый спрос</div>
+                        <div style="font-family:var(--font-d);font-size:1.6rem;font-weight:900;color:var(--a1);">312 велосипедов</div>
+                        <div style="font-size:.62rem;color:var(--text-sec);">Уровень: Высокий · погрешность ±48</div>
+                    </div>
+                </div>
+            </div>
+            <!-- Технологии и тесты -->
+            <div style="display:flex;flex-direction:column;gap:.6rem;">
+                <div class="r" style="font-size:.72rem;color:var(--text-mut);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.1rem;">Стек и тестирование</div>
+                <div class="r row-item"><span class="icon">🐍</span><span class="label">Python 3 + pandas, numpy</span></div>
+                <div class="r row-item"><span class="icon">🤖</span><span class="label">scikit-learn — RF, TimeSeriesSplit</span></div>
+                <div class="r row-item"><span class="icon">🌐</span><span class="label">Gradio — веб-интерфейс</span></div>
+                <div class="r row-item"><span class="icon">💾</span><span class="label">pickle + JSON — артефакты модели</span></div>
+                <div class="r row-item" style="border-color:rgba(74,222,128,.25);">
+                    <span class="icon">🧪</span>
+                    <span class="label">pytest — 3 автотеста</span>
+                    <span class="badge green">3 passed</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     СЛАЙД 7 — ВЫВОДЫ
+══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="7">
+    <div class="bg-lines"></div>
+    <div class="content">
+        <div class="r tag">Выводы и развитие</div>
+        <h2 class="r display glow" style="margin-bottom:.3rem;">Чего достигли и куда двигаться</h2>
+        <div class="r divider"></div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-top:1.2rem;">
+            <!-- Достижения -->
+            <div>
+                <div class="r" style="font-size:.72rem;color:#4ade80;text-transform:uppercase;letter-spacing:.12em;margin-bottom:.7rem;">✅ Достижения проекта</div>
+                <div style="display:flex;flex-direction:column;gap:.6rem;">
+                    <div class="r check" style="border-left:2px solid var(--a1);">
+                        <span class="tick" style="color:var(--a1);">🎯</span>
+                        <p>Построена <strong>полноценная ML-система</strong>: от сырого CSV до рабочего веб-приложения</p>
+                    </div>
+                    <div class="r check" style="border-left:2px solid var(--a1);">
+                        <span class="tick" style="color:var(--a1);">📉</span>
+                        <p>Random Forest снизил MAE в <strong>2.2× по сравнению с LinearRegression</strong></p>
+                    </div>
+                    <div class="r check" style="border-left:2px solid var(--a1);">
+                        <span class="tick" style="color:var(--a1);">⏱️</span>
+                        <p>TimeSeriesSplit обеспечил <strong>честную оценку</strong> без data leakage из будущего</p>
+                    </div>
+                    <div class="r check" style="border-left:2px solid var(--a1);">
+                        <span class="tick" style="color:var(--a1);">🔍</span>
+                        <p>Диагностика выявила слабое место — <strong>часы 17–18</strong>: чёткое направление для улучшений</p>
+                    </div>
+                    <div class="r check" style="border-left:2px solid var(--a1);">
+                        <span class="tick" style="color:var(--a1);">🧪</span>
+                        <p>Покрыто <strong>pytest-тестами</strong>: predict не падает, формат ответа корректен, Gradio валиден</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Улучшения -->
+            <div>
+                <div class="r" style="font-size:.72rem;color:var(--a2);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.7rem;">🚀 Возможные улучшения</div>
+                <div style="display:flex;flex-direction:column;gap:.6rem;">
+                    <div class="r check" style="border-left:2px solid var(--a2);">
+                        <span class="tick" style="color:var(--a2);">⚡</span>
+                        <p>Попробовать <strong>XGBoost / LightGBM</strong> — бустинг точнее работает с вечерними пиками</p>
+                    </div>
+                    <div class="r check" style="border-left:2px solid var(--a2);">
+                        <span class="tick" style="color:var(--a2);">🏟️</span>
+                        <p>Добавить <strong>признак городских событий</strong> (матчи, концерты) — они создают непредсказуемые всплески</p>
+                    </div>
+                    <div class="r check" style="border-left:2px solid var(--a2);">
+                        <span class="tick" style="color:var(--a2);">📊</span>
+                        <p><strong>SHAP-анализ</strong>: показывать в интерфейсе, какой фактор больше всего влияет на прогноз</p>
+                    </div>
+                    <div class="r check" style="border-left:2px solid var(--a2);">
+                        <span class="tick" style="color:var(--a2);">☁️</span>
+                        <p>Деплой на <strong>Hugging Face Spaces</strong> — постоянный публичный URL без перезапуска скрипта</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div><!-- /deck -->
+
+<!-- НАВИГАЦИЯ -->
+<div class="nav">
+    <button class="nav-btn" onclick="go(-1)">&#8249;</button>
+    <div class="dots" id="dots"></div>
+    <button class="nav-btn" onclick="go(1)">&#8250;</button>
+    <span class="ctr" id="ctr">1 / 7</span>
+</div>
+
+<script>
+let cur = 1;
+const slides = document.querySelectorAll('.slide');
+const total  = slides.length;
+const dotsEl = document.getElementById('dots');
+const ctrEl  = document.getElementById('ctr');
+
+for (let i = 1; i <= total; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 1 ? ' active' : '');
+    d.onclick = () => goTo(i);
+    dotsEl.appendChild(d);
+}
+
+function goTo(n) {
+    document.querySelector('.slide.active').classList.remove('active');
+    const next = document.querySelector(`.slide[data-slide="${n}"]`);
+    next.classList.add('active');
+    cur = n;
+    document.querySelectorAll('.dot').forEach((d,i) => d.classList.toggle('active', i+1 === n));
+    ctrEl.textContent = n + ' / ' + total;
+    animateSlide(next);
+}
+function go(d) { let n = cur + d; if (n < 1) n = total; if (n > total) n = 1; goTo(n); }
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
+});
+let tx = 0;
+document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; });
+document.addEventListener('touchend', e => { const d = tx - e.changedTouches[0].clientX; if (Math.abs(d) > 50) go(d > 0 ? 1 : -1); });
+
+function animateSlide(slide) {
+    slide.querySelectorAll('.r').forEach((el, i) => {
+        el.style.transition = 'none';
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(14px)';
+        el.offsetHeight;
+        const delay = i * 0.07;
+        el.style.transition = `opacity .35s ease ${delay}s, transform .35s ease ${delay}s`;
+        el.style.opacity = '1';
+        el.style.transform = 'translateY(0)';
+    });
+
+    // Числовые счётчики
+    slide.querySelectorAll('[data-count]:not(.counted)').forEach(el => {
+        el.classList.add('counted');
+        const target = parseFloat(el.dataset.count);
+        const isInt = Number.isInteger(target);
+        let cur = 0; const step = target / 50;
+        const t = setInterval(() => {
+            cur += step;
+            if (cur >= target) { cur = target; clearInterval(t); }
+            el.textContent = isInt ? Math.round(cur).toLocaleString('ru') : cur.toFixed(1);
+        }, 28);
+    });
+
+    // Горизонтальные бары
+    slide.querySelectorAll('.hbar-fill:not(.bar-init)').forEach((bar, i) => {
+        bar.classList.add('bar-init');
+        bar.style.width = '0%';
+        bar.style.transition = `width .8s ease ${i * .12}s`;
+        bar.offsetHeight;
+        bar.style.width = (bar.dataset.width || 0) + '%';
+    });
+}
+
+// Первый слайд
+animateSlide(document.querySelector('.slide.active'));
+</script>
+</body>
+</html>

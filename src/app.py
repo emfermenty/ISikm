@@ -11,9 +11,10 @@ with open("model.pkl", "rb") as f:
 with open("model_meta.json", encoding="utf-8") as f:
     meta = json.load(f)
 
-FEATURES = meta["features"]
-MEANS    = meta["scaler"]["means"]
-STDS     = meta["scaler"]["stds"]
+FEATURES     = meta["features"]
+MEANS        = meta["scaler"]["means"]
+STDS         = meta["scaler"]["stds"]
+MAE_BY_HOUR  = meta.get("mae_by_hour", {})
 
 # Коэффициенты денормализации из документации UCI датасета
 # (исходные данные уже нормализованы в [0,1])
@@ -89,7 +90,7 @@ def predict(hr, mnth, yr_label, season, weekday_label,
     else:
         level = "Очень высокий"
 
-    mae = meta["metrics"]["MAE"]
+    mae = MAE_BY_HOUR.get(str(hr), meta["metrics"]["MAE"])
     return (
         f"### Прогноз: {pred} велосипедов\n\n"
         f"**Уровень спроса:** {level}  \n"

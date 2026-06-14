@@ -238,7 +238,9 @@ final_mape = mape(y_test, final_pred)
 
 # Часы с наибольшей ошибкой — «сложные» случаи для модели
 err_by_hour = pd.Series(np.abs(y_test.values - final_pred), index=X_test["hr"].values)
-worst_hours = err_by_hour.groupby(level=0).mean().nlargest(2).index.tolist()
+worst_hours  = err_by_hour.groupby(level=0).mean().nlargest(2).index.tolist()
+mae_by_hour  = {str(int(h)): round(v, 1)
+                for h, v in err_by_hour.groupby(level=0).mean().items()}
 
 # ── Сохранение модели (pickle) ────────────────────────────────
 with open("model.pkl", "wb") as f:
@@ -254,6 +256,7 @@ meta = {
         "MAPE": round(final_mape, 2),
     },
     "worst_hours": worst_hours,
+    "mae_by_hour": mae_by_hour,
     # параметры Z-score нужны app.py для той же трансформации входных данных
     "scaler": {
         "means": means.to_dict(),
